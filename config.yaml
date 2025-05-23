@@ -1,0 +1,13 @@
+default_attack:
+  port: 80
+  duration: 10
+  method: UDP
+  pps: 100
+
+logging:
+  level: INFO
+  file: 4u.log
+
+auth:
+  username: khalid
+  password: yourStrongPasswordHere
